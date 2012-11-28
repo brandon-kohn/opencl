@@ -12,3 +12,7 @@
 *.la
 *.a
 /OpenCL/OpenCL.sdf
+/UnitTests/*.user
+/UnitTests/Debug
+/OpenCL/*.suo
+/OpenCL/Debug

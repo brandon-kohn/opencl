@@ -42,9 +42,9 @@ namespace opencl
 	{
 	public:
 		
-		program(const context& ctx, const program_source& props)
+		program(const context& ctx, const program_source& props, const std::string& cflags = "")
 		{
-			build_program(ctx, props);
+			build_program(ctx, props, cflags);
 		}
 
 		operator cl_program const&() const
@@ -88,16 +88,17 @@ namespace opencl
 
 	private:
 
-		void build_program(const context& ctx, const program_source& props)
+		void build_program(const context& ctx, const program_source& props, const std::string& cflags)
 		{
 			cl_int status = CL_SUCCESS;
-						
+			
+			const std::vector<device>& ctxDevices = ctx.get_devices();
+			assert(!ctxDevices.empty());
+			if( ctxDevices.empty() )
+				throw bad_program_source();
+
 			if(props.isbytecode)
-			{	
-				const std::vector<device>& ctxDevices = ctx.get_devices();
-				assert(!ctxDevices.empty());
-				if( ctxDevices.empty() )
-					throw bad_program_source();
+			{					
 				std::vector<const cl_device_id> tDevIDs(boost::begin(ctxDevices), boost::end(ctxDevices));			
 				const unsigned char* binary = (const unsigned char*)props.code.c_str();
 				const std::size_t size = props.code.size();
@@ -112,7 +113,10 @@ namespace opencl
 				prog = clCreateProgramWithSource(ctx, 1, &source, sourceSize, &status);
 				if( status != CL_SUCCESS )
 					throw bad_program_source();
-			}			
+			}	
+
+			for(std::size_t i = 0; i < ctxDevices.size(); ++i)
+				compile(ctxDevices[i], cflags);			
 		}
 
 		cl_program prog;

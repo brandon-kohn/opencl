@@ -89,6 +89,9 @@
   <ItemGroup>
     <ClInclude Include="basic_single_device_test.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Kernels\null_kernel.cl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

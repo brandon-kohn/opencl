@@ -8,6 +8,9 @@
     <Filter Include="Source Files\Tests">
       <UniqueIdentifier>{8fb442b5-16d9-494e-b2e8-2196c40a7868}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Kernels">
+      <UniqueIdentifier>{5b08dd87-d2bd-4281-ba15-4a79fc3afeb5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unittests.cpp">
@@ -18,5 +21,10 @@
     <ClInclude Include="basic_single_device_test.hpp">
       <Filter>Source Files\Tests</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Kernels\null_kernel.cl">
+      <Filter>Source Files\Kernels</Filter>
+    </None>
   </ItemGroup>
 </Project>

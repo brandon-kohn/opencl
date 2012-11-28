@@ -15,7 +15,15 @@ namespace opencl
 	class command_queue
 	{
 	public:
-				
+		
+		command_queue(cl_context ctx, cl_device_id dev, cl_command_queue_properties props)	
+		{
+			cl_int status;
+			q = clCreateCommandQueue(ctx, dev, props, &status);
+			if( status != CL_SUCCESS )
+				throw bad_device_context();
+		}			
+		
 		operator cl_command_queue const&() const
 		{
 			return ctx;
@@ -27,17 +35,7 @@ namespace opencl
 		}
 
 	private:
-
-		friend class device;
-
-		command_queue(cl_context ctx, cl_device_id dev, cl_command_queue_properties props)	
-		{
-			cl_int status;
-			q = clCreateCommandQueue(ctx, dev, props, &status);
-			if( status != CL_SUCCESS )
-				throw bad_device_context();
-		}
-
+		
 		cl_command_queue q;
 
 	};

@@ -39,7 +39,7 @@ namespace opencl
 
 	};
 
-	binary_code load_binary_code(const std::string& path)
+	inline binary_code load_binary_code(const std::string& path)
 	{
 		std::ifstream ifs(path.c_str());
 		if( !ifs.good() )
@@ -47,7 +47,7 @@ namespace opencl
 
 		std::string code;
 		ifs.seekg(0, std::ios::end);
-		code.reserve(ifs.tellg());
+		code.reserve(static_cast<std::size_t>(ifs.tellg()));
 		ifs.seekg(0, std::ios::beg);
 		code.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
 		return binary_code(code);
