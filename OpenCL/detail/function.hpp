@@ -40,10 +40,12 @@ namespace opencl
             , workdims(workDim)                 
             , eventwaitlist(eventWaitList)
         {
-            globalthreads.assign(globalThreads, globalThreads + workDim);
-            localthreads.assign(localThreads, localThreads + workDim);
-            if( workDimOffsets != 0 )
-                offsets.assign(workDimOffsets, workDimOffsets+workDim);            
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim);         
         }
                 
         template <typename S>
@@ -66,8 +68,8 @@ namespace opencl
                 knl, 
                 workdims, 
                 offsets.empty() ? 0 : &offsets[0], 
-                &globalthreads[0], 
-                &localthreads[0], 
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
                 eventwaitlist.size(), 
                 eventwaitlist.empty() ? 0 : &eventwaitlist[0], 
                 &ndrEvt); 
@@ -142,10 +144,12 @@ namespace opencl
             , workdims(workDim)                 
             , eventwaitlist(eventWaitList)
         {
-            globalthreads.assign(globalThreads, globalThreads + workDim);
-            localthreads.assign(localThreads, localThreads + workDim);
-            if( workDimOffsets != 0 )
-                offsets.assign(workDimOffsets, workDimOffsets+workDim);            
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim);          
         }
 
         template <typename S>
@@ -171,8 +175,8 @@ namespace opencl
                 knl,
                 workdims,
                 offsets.empty() ? 0 : &offsets[0],
-                &globalthreads[0],
-                &localthreads[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
                 eventwaitlist.size(),
                 eventwaitlist.empty() ? 0 : &eventwaitlist[0],
                 &ndrEvt);

@@ -88,11 +88,10 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function)
         cl_command_queue_properties qProp = 0;
         command_queue q(ctx, dev, qProp);
 
-        std::size_t globalThreads[2] = {2,2};
-        std::size_t localThreads[2] = {2,2};
+        std::size_t globalThreads[1] = {1};
 
         //Test a function wrapper for kernels.
-        function<void(int*)> fn(knl, ctx, q, 2, globalThreads, localThreads);
+        function<void(int*)> fn(knl, ctx, q, 1, globalThreads, 0);
         
         //! The function expects a pointer to an int.
         int i=0;
