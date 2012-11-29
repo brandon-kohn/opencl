@@ -78,12 +78,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="arg.hpp" />
     <ClInclude Include="binary_code.hpp" />
     <ClInclude Include="command_queue.hpp" />
     <ClInclude Include="context.hpp" />
     <ClInclude Include="detail\common.hpp" />
+    <ClInclude Include="detail\function.hpp" />
+    <ClInclude Include="detail\preprocessed\function.hpp" />
     <ClInclude Include="device.hpp" />
-    <ClInclude Include="kernal.hpp" />
+    <ClInclude Include="function.hpp" />
+    <ClInclude Include="kernel.hpp" />
     <ClInclude Include="memory.hpp" />
     <ClInclude Include="platform.hpp" />
     <ClInclude Include="program.hpp" />

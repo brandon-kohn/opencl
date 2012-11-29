@@ -47,6 +47,17 @@ namespace opencl
 			build_program(ctx, props, cflags);
 		}
 
+		program( const program& rhs )
+		{
+			prog = rhs.prog;
+			clRetainProgram(prog);
+		}
+
+		~program()
+		{
+			clReleaseProgram(prog);
+		}
+
 		operator cl_program const&() const
 		{
 			return prog;
@@ -57,8 +68,9 @@ namespace opencl
 			return prog;
 		}
 
-		template <typename Device>
-		void compile(const Device& dev, const std::string& cflags)
+	private:
+
+		void compile(const device& dev, const std::string& cflags)
 		{
 			cl_device_id id = (cl_device_id)dev;
 			cl_int status = clBuildProgram(prog, 1, &id, cflags.c_str(), 0, 0);
@@ -71,22 +83,20 @@ namespace opencl
 					status = clGetProgramBuildInfo(prog, id, CL_PROGRAM_BUILD_LOG, blogsize, &blog[0], &blogsize);
 					if(status != CL_SUCCESS)
 						throw bad_program_build("unable to access compile log");
-					
+
 					if( blogsize > blog.size() )
 						blog.resize(blogsize, '\0');
-					
+
 					status = clGetProgramBuildInfo(prog, id, CL_PROGRAM_BUILD_LOG, blogsize, &blog[0], 0);
 					if(status != CL_SUCCESS)
 						throw bad_program_build("unable to access compile log");
-					
+
 					throw bad_program_build(&blog[0]);
 				}
-				
+
 				throw bad_program_build("unable to access compile log");
 			}
 		}
-
-	private:
 
 		void build_program(const context& ctx, const program_source& props, const std::string& cflags)
 		{

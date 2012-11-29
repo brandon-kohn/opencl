@@ -46,6 +46,7 @@ namespace opencl
 			return *id;
 		}
 						
+		const platform&             get_platform() const { return plat; }
 		cl_device_type              get_type() const { return type; }
 		cl_device_id                get_id() const { if( !id ) instantiate(); return *id; }
 		std::string                 get_name() const { return name; }
@@ -157,6 +158,29 @@ namespace opencl
 		mutable boost::optional<cl_device_id> id;
 
 	};
+
+	//! /brief Using the list of platforms and devices within those lists get the first device of the specified type.
+	inline device get_first_device(cl_device_type type)
+	{
+		std::vector<platform> platforms = get_platforms();
+		for( std::size_t i = 0; i < platforms.size(); ++i )
+		{
+			platform& plat = platforms[i];
+			cl_uint nDevices = plat.get_device_count(type);
+
+			if( nDevices == 0 )
+				continue;
+
+			boost::shared_array<cl_device_id> ids( new cl_device_id[nDevices] );
+			cl_int status = clGetDeviceIDs(plat, type, nDevices, ids.get(), 0);
+			if(status != CL_SUCCESS)
+				throw bad_platform_exception();
+
+			return device(plat, ids[0], 0);
+		}
+
+		throw device_not_found();
+	}
 
 }//namespace opencl;
 

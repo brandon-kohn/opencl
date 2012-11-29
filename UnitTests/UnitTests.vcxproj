@@ -88,9 +88,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="basic_single_device_test.hpp" />
+    <ClInclude Include="Tests\platform_tests.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Kernels\null_kernel.cl" />
+    <None Include="Kernels\return_int.cl" />
+    <None Include="Kernels\set_int.cl" />
+    <None Include="Kernels\syntax_error.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

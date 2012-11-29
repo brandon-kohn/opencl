@@ -26,20 +26,7 @@ namespace opencl
 		context(DeviceRange dIDs)	
 			: devices(boost::begin(dIDs), boost::end(dIDs))
 		{}
-
-		void instantiate() const
-		{
-			cl_int status;
-			cl_uint nDevices = devices.size();
-			std::vector<cl_device_id> ids(devices.begin(), devices.end());
-			if( !ids.empty() )
-			{
-				ctx = clCreateContext(0, nDevices, &ids[0], 0, 0, &status);
-				if( status != CL_SUCCESS )
-					throw bad_device_context();
-			}
-		}
-		
+				
 		operator cl_context const&() const
 		{
 			if( !ctx )
@@ -57,6 +44,26 @@ namespace opencl
 		const std::vector<device>& get_devices() const { return devices; }
 
 	private:
+				
+		void instantiate() const
+		{
+			cl_int status;
+			cl_uint nDevices = devices.size();
+			std::vector<cl_device_id> ids(devices.begin(), devices.end());
+			if( !ids.empty() )
+			{
+				boost::shared_array<cl_context_properties> cps( new cl_context_properties[2*nDevices + 1] );
+				for( std::size_t i = 0; i < nDevices; )
+				{
+					cps[i] = CL_CONTEXT_PLATFORM;
+					cps[++i] = (cl_context_properties)(cl_platform_id)devices[0].get_platform();
+				};
+				cps[nDevices-1] = 0;
+				ctx = clCreateContext(cps.get(), nDevices, &ids[0], 0, 0, &status);
+				if( status != CL_SUCCESS )
+					throw bad_device_context();
+			}
+		}
 		
 		std::vector<device>                 devices;
 		mutable boost::optional<cl_context> ctx;

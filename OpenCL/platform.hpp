@@ -38,6 +38,21 @@ namespace opencl
 			: vendor(vendor)
 		{}
 
+		platform( cl_platform_id id )
+			: id(id)
+		{
+			std::size_t size=0;
+			cl_int status = clGetPlatformInfo(id, CL_PLATFORM_VENDOR, 0, 0, &size);
+			if(status != CL_SUCCESS)
+				throw bad_platform_exception();
+
+			boost::shared_array<char> buf(new char[size]);
+			status = clGetPlatformInfo(id, CL_PLATFORM_VENDOR, size, buf.get(), &size);
+			if(status != CL_SUCCESS)
+				throw bad_platform_exception();
+			vendor.assign(buf.get(), buf.get() + size);
+		}
+
 		operator cl_platform_id&()
 		{
 			if( !id )
@@ -169,6 +184,17 @@ namespace opencl
 		std::string                             vendor;
 	};					
 
+	inline std::vector<platform> get_platforms()
+	{
+		cl_uint numPlatforms = number_platforms();
+		boost::shared_array<cl_platform_id> platforms(new cl_platform_id[numPlatforms]);
+		cl_int status = clGetPlatformIDs(numPlatforms, platforms.get(), 0);
+		if(status != CL_SUCCESS)
+			throw bad_platform_exception();
+
+		std::vector<platform> plats(platforms.get(), platforms.get()+numPlatforms);
+		return plats;
+	}
 }//namespace opencl;
 
 #endif//OPENCL_PLATFORM_HPP_INCLUDE

@@ -11,6 +11,15 @@
     <Filter Include="Source Files\Kernels">
       <UniqueIdentifier>{5b08dd87-d2bd-4281-ba15-4a79fc3afeb5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Tests\platform">
+      <UniqueIdentifier>{16208f85-878b-4691-917c-657ee16e9fa4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Tests\program">
+      <UniqueIdentifier>{907adfd5-f42d-4085-b7e9-86356afd3269}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Tests\device">
+      <UniqueIdentifier>{c049475e-f0ef-470b-9917-c4597b225208}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="unittests.cpp">
@@ -21,9 +30,21 @@
     <ClInclude Include="basic_single_device_test.hpp">
       <Filter>Source Files\Tests</Filter>
     </ClInclude>
+    <ClInclude Include="Tests\platform_tests.hpp">
+      <Filter>Source Files\Tests\platform</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Kernels\null_kernel.cl">
+      <Filter>Source Files\Kernels</Filter>
+    </None>
+    <None Include="Kernels\syntax_error.cl">
+      <Filter>Source Files\Kernels</Filter>
+    </None>
+    <None Include="Kernels\return_int.cl">
+      <Filter>Source Files\Kernels</Filter>
+    </None>
+    <None Include="Kernels\set_int.cl">
       <Filter>Source Files\Kernels</Filter>
     </None>
   </ItemGroup>

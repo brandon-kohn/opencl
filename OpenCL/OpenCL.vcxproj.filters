@@ -8,6 +8,9 @@
     <Filter Include="Source Files\detail">
       <UniqueIdentifier>{db1f3af9-b7b3-4ee0-93a9-393226303df3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\detail\preprocessed">
+      <UniqueIdentifier>{56b17d1c-6c6b-4fe1-b593-0969dfdfd16e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="detail\common.hpp">
@@ -25,9 +28,6 @@
     <ClInclude Include="device.hpp">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="kernal.hpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="memory.hpp">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -39,6 +39,21 @@
     </ClInclude>
     <ClInclude Include="source_code.hpp">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="function.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="arg.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\function.hpp">
+      <Filter>Source Files\detail</Filter>
+    </ClInclude>
+    <ClInclude Include="detail\preprocessed\function.hpp">
+      <Filter>Source Files\detail\preprocessed</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -26,12 +26,12 @@ namespace opencl
 		
 		operator cl_command_queue const&() const
 		{
-			return ctx;
+			return q;
 		}
 
 		operator cl_command_queue&()
 		{
-			return ctx;
+			return q;
 		}
 
 	private:

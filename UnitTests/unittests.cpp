@@ -6,6 +6,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "./basic_single_device_test.hpp"
+#include "./Tests/platform_tests.hpp"
 
 #include <fstream>
 
