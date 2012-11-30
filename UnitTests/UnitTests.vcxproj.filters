@@ -47,5 +47,8 @@
     <None Include="Kernels\set_int.cl">
       <Filter>Source Files\Kernels</Filter>
     </None>
+    <None Include="Kernels\dot_product.cl">
+      <Filter>Source Files\Kernels</Filter>
+    </None>
   </ItemGroup>
 </Project>

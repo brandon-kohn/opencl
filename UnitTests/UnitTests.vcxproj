@@ -91,6 +91,7 @@
     <ClInclude Include="Tests\platform_tests.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Kernels\dot_product.cl" />
     <None Include="Kernels\null_kernel.cl" />
     <None Include="Kernels\return_int.cl" />
     <None Include="Kernels\set_int.cl" />

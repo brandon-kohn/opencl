@@ -109,6 +109,52 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function)
     }
 }
 
+inline size_t nearest_group_size_multiple(std::size_t grp, std::size_t glb) 
+{
+    std::size_t r = grp % glb;
+    return r ? glb + grp - r : glb;
+}
+
+//! Test a dot product kernel function
+BOOST_AUTO_TEST_CASE(single_device_test_kernel_function_dot_product)
+{
+    using namespace opencl;
+
+    try
+    {
+        device dev = get_first_device(CL_DEVICE_TYPE_ALL);
+        context ctx(dev);
+        program prg(ctx, load_source_code("./Kernels/dot_product.cl"));
+        kernel knl(prg, "dot_product");
+        cl_command_queue_properties qProp = 0;
+        command_queue q(ctx, dev, qProp);
+        
+        std::size_t nElems = 10;
+        std::size_t localThreads = 256;
+        std::size_t globalThreads = nearest_group_size_multiple(localThreads, nElems * localThreads);
+
+        //Test a function wrapper for kernels.
+        function<void(const boost::array<double, 10>&, const boost::array<double, 10>&, boost::array<double, 10>&, std::size_t)> fn(knl, ctx, q, 1, &globalThreads, &localThreads);
+
+        //! The function expects a pointer to an int.
+        boost::array<double, 10> a = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, b = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, c;
+
+        //! Run the kernel.
+        fn(a, b, c, nElems);
+
+        //! Check the result.
+        
+    }
+    catch(bad_program_build& e)
+    {
+        std::cout << e.what() << std::endl;
+    }
+    catch(...)
+    {
+        BOOST_CHECK(false);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif //OPENCL_BASIC_SINGLE_DEVICE_TEST_HPP_INCLUDE

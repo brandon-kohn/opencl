@@ -38,6 +38,42 @@ namespace opencl
         }
     };
 
+    template <typename T>
+    struct void_pointer_mapper<T*, void>
+    {
+        typedef void* result_type;
+
+        //! Default memory mapper assumes POD semantics.
+        static std::size_t size(T* const&)
+        {
+            return sizeof(T);
+        }
+
+        //! convert the type to a void*
+        static void* apply(T*& a)
+        {
+            return (void*)a;
+        }
+    };
+
+    template <typename T, int N>
+    struct void_pointer_mapper< boost::array<T,N> >
+    {
+        typedef void* result_type;
+
+        //! Default memory mapper assumes POD semantics.
+        static std::size_t size(boost::array<T,N> const&)
+        {
+            return sizeof(T)*N;
+        }
+
+        //! convert the type to a void*
+        static void* apply(boost::array<T,N>& a)
+        {
+            return (void*)&a[0];
+        }
+    };
+
     //! \brief specify types which must map into a buffer.
     //! The default case is treated like a POD and will be copied bitwise onto the device.
     template <typename T, typename EnableIf=void>
@@ -98,7 +134,7 @@ namespace opencl
         {
             enqueue_map_buffer(CL_TRUE, CL_MAP_WRITE);
             wait_for_map_event();
-            memcpy(memPtr, a, mem.get_size());
+            memcpy(memPtr, void_pointer_mapper<T>::apply(a), mem.get_size());
             enqueue_unmap_buffer();
             wait_for_unmap_event();
             cl_int status = clSetKernelArg(
@@ -113,7 +149,7 @@ namespace opencl
         {
             enqueue_map_buffer(CL_TRUE, CL_MAP_READ);
             wait_for_map_event();
-            memcpy(a, memPtr, mem.get_size());
+            memcpy(void_pointer_mapper<T>::apply(a), memPtr, mem.get_size());
             enqueue_unmap_buffer();
             wait_for_unmap_event();
         }
