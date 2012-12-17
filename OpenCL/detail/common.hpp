@@ -8,6 +8,6 @@
 #if !defined(OPENCL_COMMON_HPP_INCLUDE)
 #define OPENCL_COMMON_HPP_INCLUDE
 
-#include <CL/opencl.h>
+#include <CL/cl.hpp>
 
 #endif//OPENCL_COMMON_HPP_INCLUDE
