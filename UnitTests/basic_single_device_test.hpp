@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function_dot_product)
         function<void(const boost::array<double, 10>&, const boost::array<double, 10>&, boost::array<double, 10>&, std::size_t)> fn(knl, ctx, q, 1, &globalThreads, &localThreads);
 
         //! The function expects a pointer to an int.
-        boost::array<double, 10> a = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, b = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, c;
+        boost::array<double, 10> a = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, b = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, c = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         //! Run the kernel.
         fn(a, b, c, nElems);
