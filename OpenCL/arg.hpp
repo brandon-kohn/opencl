@@ -42,14 +42,12 @@ namespace opencl
     struct void_pointer_mapper<T*, void>
     {
         typedef void* result_type;
-
-        //! Default memory mapper assumes POD semantics.
+                
         static std::size_t size(T* const&)
         {
             return sizeof(T);
         }
 
-        //! convert the type to a void*
         static void* apply(T*& a)
         {
             return (void*)a;
@@ -111,10 +109,14 @@ namespace opencl
                 void_pointer_mapper<T>::apply(a));
             assert(status == CL_SUCCESS);
         }
-
-        void read_data(){}
-
+        
     private:
+
+        template <typename S, int N, typename ResultType>
+        friend struct function_impl;
+
+        //! Args of this type cannot be read back.
+        void read_data(){}
 
         int              argN;
         cl_kernel        knl;
@@ -144,18 +146,25 @@ namespace opencl
                 (void*)&mem);
             assert(status == CL_SUCCESS);
         }
+                
+    private:
 
+        template <typename S, int N, typename ResultType>
+        friend struct function_impl;
+        
         void read_data()
         {
-            enqueue_map_buffer(CL_TRUE, CL_MAP_READ);
-            wait_for_map_event();
-            memcpy(void_pointer_mapper<T>::apply(a), memPtr, mem.get_size());
-            enqueue_unmap_buffer();
-            wait_for_unmap_event();
-        }
+            //! Cannot read back const values.
+            if( !boost::is_const<T>::value )
+            {
+                enqueue_map_buffer(CL_TRUE, CL_MAP_READ);
+                wait_for_map_event();
+                memcpy(void_pointer_mapper<T>::apply(a), memPtr, mem.get_size());
+                enqueue_unmap_buffer();
+                wait_for_unmap_event();
+            }
+        }        
         
-        private:
-
         void enqueue_map_buffer(cl_bool blocking, cl_map_flags flags)
         {
             cl_int status;

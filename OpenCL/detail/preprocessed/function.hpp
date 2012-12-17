@@ -9,8 +9,10 @@
 //
 namespace opencl
 {
-    template <typename Signature, int Arity = 0>
-    struct function_impl
+    template <typename Signature, int Arity, typename ResultType>
+    struct function_impl;
+    template <typename Signature>
+    struct function_impl<Signature, 0, void>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -28,14 +30,9 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-                
-        template <typename S>
-        struct result;
-        template<typename RT> 
-        struct result<RT()> 
-        { 
-            typedef RT type; 
-        }; 
+        
+        typedef void result_type;
+        
         void operator()() 
         { 
             cl_int status; 
@@ -68,6 +65,7 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
         } 
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -78,8 +76,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,1>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 0, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -97,21 +95,87 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 > 
-        struct result<RT(T0) >
+        typedef ResultType result_type; 
+        result_type operator()() 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(0, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ); 
+            assert( status == CL_SUCCESS ); 
+            status = clEnqueueNDRangeKernel( 
+                cmdQ, 
+                knl, 
+                workdims, 
+                offsets.empty() ? 0 : &offsets[0], 
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(), 
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0], 
+                &ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            status = clFlush(cmdQ); 
+            assert(status == CL_SUCCESS); 
+            eventStatus = CL_QUEUED; 
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            argR.read_data();
+            status = clFlush(cmdQ); 
+            assert(status == CL_SUCCESS); 
+            return r;
+        } 
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    
+    template <typename Signature>
+    struct function_impl<Signature, 1, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 >
-        void operator()(T0 &a0) 
+        result_type operator()(T0 &a0) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -140,8 +204,9 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
         }
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -152,8 +217,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,2>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 1, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -171,21 +236,90 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 , typename T1 > 
-        struct result<RT(T0 , T1) >
+        typedef ResultType result_type;
+        
+        template<typename T0 >
+        result_type operator()(T0 &a0) 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(1, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature>
+    struct function_impl<Signature, 2, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 , typename T1 >
-        void operator()(T0 &a0 , T1 &a1) 
+        result_type operator()(T0 &a0 , T1 &a1) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -214,8 +348,9 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data(); arg1.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
         }
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -226,8 +361,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,3>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 2, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -245,21 +380,90 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 , typename T1 , typename T2 > 
-        struct result<RT(T0 , T1 , T2) >
+        typedef ResultType result_type;
+        
+        template<typename T0 , typename T1 >
+        result_type operator()(T0 &a0 , T1 &a1) 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(2, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data(); arg1.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature>
+    struct function_impl<Signature, 3, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 , typename T1 , typename T2 >
-        void operator()(T0 &a0 , T1 &a1 , T2 &a2) 
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -288,8 +492,9 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data(); arg1.read_data(); arg2.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
         }
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -300,8 +505,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,4>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 3, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -319,21 +524,90 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 , typename T1 , typename T2 , typename T3 > 
-        struct result<RT(T0 , T1 , T2 , T3) >
+        typedef ResultType result_type;
+        
+        template<typename T0 , typename T1 , typename T2 >
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2) 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(3, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data(); arg1.read_data(); arg2.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature>
+    struct function_impl<Signature, 4, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 , typename T1 , typename T2 , typename T3 >
-        void operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3) 
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -362,8 +636,9 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
         }
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -374,8 +649,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,5>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 4, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -393,21 +668,90 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 , typename T1 , typename T2 , typename T3 , typename T4 > 
-        struct result<RT(T0 , T1 , T2 , T3 , T4) >
+        typedef ResultType result_type;
+        
+        template<typename T0 , typename T1 , typename T2 , typename T3 >
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3) 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(4, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature>
+    struct function_impl<Signature, 5, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 , typename T1 , typename T2 , typename T3 , typename T4 >
-        void operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4) 
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); arg<T4> arg4(4,a4,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -436,8 +780,9 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data(); arg4.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
         }
+        
     private:
         kernel knl;
         cl_context ctx;
@@ -448,8 +793,8 @@ namespace opencl
         std::vector<std::size_t> offsets;
         std::vector<cl_event> eventwaitlist;
     };
-    template <typename Signature>
-    struct function_impl<Signature,6>
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 5, ResultType>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -467,21 +812,90 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim); 
         }
-        template <typename S>
-        struct result;
-        template< typename RT , typename T0 , typename T1 , typename T2 , typename T3 , typename T4 , typename T5 > 
-        struct result<RT(T0 , T1 , T2 , T3 , T4 , T5) >
+        typedef ResultType result_type;
+        
+        template<typename T0 , typename T1 , typename T2 , typename T3 , typename T4 >
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4) 
         { 
-            typedef RT type; 
-        }; 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); arg<T4> arg4(4,a4,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(5, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data(); arg4.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature>
+    struct function_impl<Signature, 6, void>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef void result_type;
         template<typename T0 , typename T1 , typename T2 , typename T3 , typename T4 , typename T5 >
-        void operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4 , T5 &a5) 
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4 , T5 &a5) 
         { 
             cl_int status; 
             cl_event ndrEvt; 
             cl_int eventStatus = CL_QUEUED; 
             arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); arg<T4> arg4(4,a4,ctx,cmdQ,knl); arg<T5> arg5(5,a5,ctx,cmdQ,knl); 
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
             assert( status == CL_SUCCESS ); 
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -510,7 +924,83 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
             arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data(); arg4.read_data(); arg5.read_data();
-            status = clFlush(cmdQ); 
+                status = clFlush(cmdQ); 
+        }
+        
+    private:
+        kernel knl;
+        cl_context ctx;
+        command_queue cmdQ;
+        std::size_t workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event> eventwaitlist;
+    };
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 6, ResultType>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim) 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim); 
+        }
+        typedef ResultType result_type;
+        
+        template<typename T0 , typename T1 , typename T2 , typename T3 , typename T4 , typename T5 >
+        result_type operator()(T0 &a0 , T1 &a1 , T2 &a2 , T3 &a3 , T4 &a4 , T5 &a5) 
+        { 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            arg<T0> arg0(0,a0,ctx,cmdQ,knl); arg<T1> arg1(1,a1,ctx,cmdQ,knl); arg<T2> arg2(2,a2,ctx,cmdQ,knl); arg<T3> arg3(3,a3,ctx,cmdQ,knl); arg<T4> arg4(4,a4,ctx,cmdQ,knl); arg<T5> arg5(5,a5,ctx,cmdQ,knl); 
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(6, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            arg0.read_data(); arg1.read_data(); arg2.read_data(); arg3.read_data(); arg4.read_data(); arg5.read_data();
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
         }
     private:
         kernel knl;
@@ -523,9 +1013,9 @@ namespace opencl
         std::vector<cl_event> eventwaitlist;
     };
 	template <typename Signature>
-	class function : function_impl<Signature, boost::function_types::function_arity<Signature>::value>
+	class function : function_impl<Signature, boost::function_types::function_arity<Signature>::value, typename boost::function_traits<Signature>::result_type>
 	{
-        typedef function_impl<Signature, boost::function_types::function_arity<Signature>::value> base_type;
+        typedef function_impl<Signature, boost::function_types::function_arity<Signature>::value, typename boost::function_traits<Signature>::result_type> base_type;
 	public:
 		function( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
                 , const std::size_t* globalThreads, const std::size_t* localThreads

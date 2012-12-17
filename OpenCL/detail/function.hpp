@@ -28,8 +28,11 @@
 #endif
 namespace opencl
 {
-    template <typename Signature, int Arity = 0>
-    struct function_impl
+    template <typename Signature, int Arity, typename ResultType>
+    struct function_impl;
+
+    template <typename Signature>
+    struct function_impl<Signature, 0, void>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -47,16 +50,9 @@ namespace opencl
             if( 0 != workDimOffsets )
                 offsets.assign(workDimOffsets, workDimOffsets+workDim);         
         }
-                
-        template <typename S>
-        struct result;
-
-        template<typename RT>                                                                        
-        struct result<RT()>               
-        {                                                                        
-            typedef RT type;                                                     
-        };                                                                       
-
+        
+        typedef void result_type;
+        
         void operator()() 
         { 
             cl_int status; 
@@ -90,7 +86,7 @@ namespace opencl
             status = clReleaseEvent(ndrEvt); 
             assert(status == CL_SUCCESS); 
         } 
-
+        
     private:
         kernel        knl;
         cl_context    ctx;
@@ -102,13 +98,91 @@ namespace opencl
         std::vector<cl_event>    eventwaitlist;
     };
 
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, 0, ResultType>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim)                 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim);         
+        }
+
+        typedef ResultType result_type;                                                                 
+
+        result_type operator()() 
+        { 
+            cl_int status; 
+            cl_event ndrEvt; 
+            cl_int eventStatus = CL_QUEUED; 
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(0, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);                                              
+            assert( status == CL_SUCCESS );    
+
+            status = clEnqueueNDRangeKernel( 
+                cmdQ, 
+                knl, 
+                workdims, 
+                offsets.empty() ? 0 : &offsets[0], 
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(), 
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0], 
+                &ndrEvt); 
+            assert(status == CL_SUCCESS); 
+            status = clFlush(cmdQ); 
+            assert(status == CL_SUCCESS); 
+            eventStatus = CL_QUEUED; 
+            while(eventStatus != CL_COMPLETE) 
+            { 
+                status = clGetEventInfo( 
+                    ndrEvt, 
+                    CL_EVENT_COMMAND_EXECUTION_STATUS, 
+                    sizeof(cl_int), 
+                    &eventStatus, 
+                    0); 
+                assert(status == CL_SUCCESS); 
+            } 
+            status = clReleaseEvent(ndrEvt); 
+            assert(status == CL_SUCCESS); 
+
+            argR.read_data();
+            status = clFlush(cmdQ); 
+            assert(status == CL_SUCCESS); 
+
+            return r;
+        } 
+
+    private:
+        kernel                   knl;
+        cl_context               ctx;
+        command_queue            cmdQ;
+        std::size_t              workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event>    eventwaitlist;
+    };
+    
     #define BOOST_PP_ITERATION_PARAMS_1 (3, (1, OPENCL_MAX_FUNCTION_ARGS, "./function.hpp"))
     #include BOOST_PP_ITERATE()   
 
 	template <typename Signature>
-	class function : function_impl<Signature, boost::function_types::function_arity<Signature>::value>
+	class function : function_impl<Signature, boost::function_types::function_arity<Signature>::value, typename boost::function_traits<Signature>::result_type>
 	{
-        typedef function_impl<Signature, boost::function_types::function_arity<Signature>::value> base_type;
+        typedef function_impl<Signature, boost::function_types::function_arity<Signature>::value, typename boost::function_traits<Signature>::result_type> base_type;
 	public:
 
 		function( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
@@ -133,7 +207,7 @@ namespace opencl
         arg ## n.read_data();                  \
 
     template <typename Signature>
-    struct function_impl<Signature,N>
+    struct function_impl<Signature, N, void>
     {
         function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
             , const std::size_t* globalThreads, const std::size_t* localThreads
@@ -152,23 +226,16 @@ namespace opencl
                 offsets.assign(workDimOffsets, workDimOffsets+workDim);          
         }
 
-        template <typename S>
-        struct result;
-
-        template< typename RT BOOST_PP_COMMA_IF(N) BOOST_PP_ENUM_PARAMS(N, typename T) >                                                                        
-        struct result<RT(BOOST_PP_ENUM_PARAMS(N,T)) >
-        {                                                                        
-            typedef RT type;                                                     
-        };                                                                       
+        typedef void result_type;
 
         template<BOOST_PP_ENUM_PARAMS(N, typename T) >
-        void operator()(BOOST_PP_ENUM_BINARY_PARAMS(N, T, &a))                
+        result_type operator()(BOOST_PP_ENUM_BINARY_PARAMS(N, T, &a))                
         {                                                                        
             cl_int   status;                                                     
             cl_event ndrEvt;                                                     
             cl_int eventStatus = CL_QUEUED;                                      
             OPENCL_MAKE_ARGS(N)                                                  
-            status = clFlush(cmdQ);                                              
+                status = clFlush(cmdQ);                                              
             assert( status == CL_SUCCESS );                                      
             status = clEnqueueNDRangeKernel(
                 cmdQ,
@@ -198,14 +265,92 @@ namespace opencl
             assert(status == CL_SUCCESS);    
 
             BOOST_PP_REPEAT(N, OPENCL_READ_DATA,_)
-            status = clFlush(cmdQ);            
+                status = clFlush(cmdQ);            
         }
-
+        
     private:
         kernel        knl;
         cl_context    ctx;
         command_queue cmdQ;
         std::size_t   workdims;
+        std::vector<std::size_t> globalthreads;
+        std::vector<std::size_t> localthreads;
+        std::vector<std::size_t> offsets;
+        std::vector<cl_event>    eventwaitlist;
+    };
+
+    template <typename Signature, typename ResultType>
+    struct function_impl<Signature, N, ResultType>
+    {
+        function_impl( const kernel& knl, const cl_context& ctx, const command_queue& q, cl_uint workDim
+            , const std::size_t* globalThreads, const std::size_t* localThreads
+            , const std::vector<cl_event>& eventWaitList = std::vector<cl_event>(), const std::size_t* workDimOffsets = 0)	
+            : knl(knl)
+            , ctx(ctx)
+            , cmdQ(q)
+            , workdims(workDim)                 
+            , eventwaitlist(eventWaitList)
+        {
+            if( 0 != globalThreads )
+                globalthreads.assign(globalThreads, globalThreads + workDim);
+            if( 0 != localThreads ) 
+                localthreads.assign(localThreads, localThreads + workDim);
+            if( 0 != workDimOffsets )
+                offsets.assign(workDimOffsets, workDimOffsets+workDim);          
+        }
+
+        typedef ResultType result_type;
+        
+        template<BOOST_PP_ENUM_PARAMS(N, typename T) >
+        result_type operator()(BOOST_PP_ENUM_BINARY_PARAMS(N, T, &a))     
+        {                                                                        
+            cl_int   status;                                                     
+            cl_event ndrEvt;                                                     
+            cl_int eventStatus = CL_QUEUED;                                      
+            OPENCL_MAKE_ARGS(N)       
+            typedef typename result<Signature>::type result_type;
+            result_type r;
+            result_type* pR = &r;
+            arg<result_type*> argR(N, pR, ctx, cmdQ, knl);
+            status = clFlush(cmdQ);
+            assert( status == CL_SUCCESS );
+            status = clEnqueueNDRangeKernel(
+                cmdQ,
+                knl,
+                workdims,
+                offsets.empty() ? 0 : &offsets[0],
+                globalthreads.empty() ? 0 : &globalthreads[0],
+                localthreads.empty() ? 0 : &localthreads[0],
+                eventwaitlist.size(),
+                eventwaitlist.empty() ? 0 : &eventwaitlist[0],
+                &ndrEvt);
+            assert(status == CL_SUCCESS);
+            status = clFlush(cmdQ);
+            assert(status == CL_SUCCESS);
+            eventStatus = CL_QUEUED;
+            while(eventStatus != CL_COMPLETE)                                    
+            {                                                                    
+                status = clGetEventInfo(                                         
+                    ndrEvt,                                                      
+                    CL_EVENT_COMMAND_EXECUTION_STATUS,                           
+                    sizeof(cl_int),                                              
+                    &eventStatus,                                                
+                    0);                                                          
+                assert(status == CL_SUCCESS);                                    
+            }                                                                    
+            status = clReleaseEvent(ndrEvt);                                     
+            assert(status == CL_SUCCESS);    
+            BOOST_PP_REPEAT(N, OPENCL_READ_DATA,_)
+            argR.read_data();
+            status = clFlush(cmdQ);
+            return r;
+        }
+
+    private:
+        kernel                   knl;
+        cl_context               ctx;
+        command_queue            cmdQ;
+        std::size_t              workdims;
         std::vector<std::size_t> globalthreads;
         std::vector<std::size_t> localthreads;
         std::vector<std::size_t> offsets;

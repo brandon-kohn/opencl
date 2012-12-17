@@ -91,14 +91,10 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function)
         std::size_t globalThreads[1] = {1};
 
         //Test a function wrapper for kernels.
-        function<void(int*)> fn(knl, ctx, q, 1, globalThreads, 0);
+        function<int()> fn(knl, ctx, q, 1, globalThreads, 0);
         
-        //! The function expects a pointer to an int.
-        int i=0;
-        int* pI = &i;
-
-        //! Run the kernel.
-        fn(pI);
+        //! run the kernel.
+        int i = fn();
 
         //! Check the result.
         BOOST_CHECK(i==42);
