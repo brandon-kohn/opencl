@@ -3,24 +3,25 @@
 //! dot product with coalescence.
 __kernel void dot_product(__global const double* a, __global const double* b, __global double* c, uint size)
 {
-   int i = get_global_id(0);
    int nWorkItems = get_global_size(0);
    
-   float val = 0.0f;
-   int ind = i;
-   for (int j = 0; j < size; ++j)
+   double val = 0.0;
+   int i = get_global_id(0);
+   for (int j = 0; j < size && i < size; ++j)
    {
-      val += a[ind]*b[ind];
-      ind += nWorkItems;
+       val += a[i]*b[i];
+       i += nWorkItems;
    }
-   val += c[i];
+          
+   if( i < size )
+       val += c[i];
 
    //Reduction part
    int p = get_local_id(0);
    int q = get_group_id(0);
    int maxp = get_local_size(0);
 
-   __local float values[256];
+   __local double values[256];
    values[p] = val;
    barrier(CLK_LOCAL_MEM_FENCE);
 

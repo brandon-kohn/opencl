@@ -76,7 +76,19 @@ namespace opencl
 			cl_uint deviceCount = 0;
 			cl_int status = clGetDeviceIDs(*id, dType, 0, 0, &deviceCount);
 			if(status != CL_SUCCESS)
-				throw bad_platform_exception();
+		    {
+                switch(status)
+                {
+                case CL_DEVICE_NOT_FOUND: //! if no OpenCL devices that matched device_type were found.
+                    return 0;
+                case CL_INVALID_PLATFORM ://! if platform is not a valid platform.
+                case CL_INVALID_DEVICE_TYPE: //! if device_type is not a valid value.
+                case CL_INVALID_VALUE: //! if num_entries is equal to zero and devices is not NULL or if both num_devices and devices are NULL.                
+                case CL_OUT_OF_RESOURCES: //! if there is a failure to allocate resources required by the OpenCL implementation on the device.
+                case CL_OUT_OF_HOST_MEMORY: //! if there is a failure to allocate resources required by the OpenCL implementation on the host.
+                    throw bad_platform_exception();
+                };                
+            }
 
 			return deviceCount;
 		}

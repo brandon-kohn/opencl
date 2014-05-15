@@ -86,6 +86,10 @@ namespace opencl
     struct is_buffer_type< std::vector<T, Alloc> >
         : boost::true_type{};
 
+    template <typename T, typename Alloc>
+    struct is_buffer_type< boost::container::vector<T, Alloc> >
+        : boost::true_type{};
+
     template <typename T, int Size>
     struct is_buffer_type< boost::array<T, Size> >
         : boost::true_type{};

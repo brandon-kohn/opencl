@@ -8,7 +8,7 @@
 #if !defined(OPENCL_BASIC_SINGLE_DEVICE_TEST_HPP_INCLUDE)
 #define OPENCL_BASIC_SINGLE_DEVICE_TEST_HPP_INCLUDE
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 #include "../OpenCL/device.hpp"
 #include "../OpenCL/context.hpp"
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function)
 
     try
     {
-        device dev = get_first_device(CL_DEVICE_TYPE_ALL);
+        device dev = get_first_device(CL_DEVICE_TYPE_GPU);
         context ctx(dev);
         program prg(ctx, load_source_code("./Kernels/set_int.cl"));
         kernel knl(prg, "set_int");
@@ -105,12 +105,6 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function)
     }
 }
 
-inline size_t nearest_group_size_multiple(std::size_t grp, std::size_t glb) 
-{
-    std::size_t r = grp % glb;
-    return r ? glb + grp - r : glb;
-}
-
 //! Test a dot product kernel function
 BOOST_AUTO_TEST_CASE(single_device_test_kernel_function_dot_product)
 {
@@ -118,7 +112,7 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function_dot_product)
 
     try
     {
-        device dev = get_first_device(CL_DEVICE_TYPE_ALL);
+        device dev = get_first_device(CL_DEVICE_TYPE_GPU);
         context ctx(dev);
         program prg(ctx, load_source_code("./Kernels/dot_product.cl"));
         kernel knl(prg, "dot_product");
@@ -127,13 +121,13 @@ BOOST_AUTO_TEST_CASE(single_device_test_kernel_function_dot_product)
         
         std::size_t nElems = 10;
         std::size_t localThreads = 256;
-        std::size_t globalThreads = nearest_group_size_multiple(localThreads, nElems * localThreads);
+        std::size_t globalThreads = 512;
 
         //Test a function wrapper for kernels.
         function<void(const boost::array<double, 10>&, const boost::array<double, 10>&, boost::array<double, 10>&, std::size_t)> fn(knl, ctx, q, 1, &globalThreads, &localThreads);
 
         //! The function expects a pointer to an int.
-        boost::array<double, 10> a = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, b = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, c = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        boost::array<double, 10> a = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, b = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 }, c = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         //! Run the kernel.
         fn(a, b, c, nElems);

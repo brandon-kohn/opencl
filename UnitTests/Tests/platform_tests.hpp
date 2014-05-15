@@ -8,7 +8,7 @@
 #if !defined(OPENCL_PLATFORM_TESTS_HPP_INCLUDE)
 #define OPENCL_PLATFORM_TESTS_HPP_INCLUDE
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 
 #include "../OpenCL/platform.hpp"
 
